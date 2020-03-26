@@ -16,6 +16,7 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
 
 @property (nonatomic, strong) NSMenuItem *playerStateMenuItem;
 @property (nonatomic, strong) NSMenuItem *dockIconMenuItem;
+@property (nonatomic, strong) NSMenuItem *togglePlayingMenuItem;
 @property (nonatomic, strong) NSStatusItem *statusItem;
 
 @end
@@ -34,16 +35,21 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
     
     self.playerStateMenuItem = [[NSMenuItem alloc] initWithTitle:[self determinePlayerStateMenuItemTitle] action:@selector(togglePlayerStateVisibility) keyEquivalent:@""];
     
-    self.dockIconMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Hide Dock Icon", nil) action:@selector(toggleDockIconVisibility) keyEquivalent:@""];
+    self.dockIconMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Show Dock Icon", nil) action:@selector(toggleDockIconVisibility) keyEquivalent:@""];
+        
+    self.togglePlayingMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Pause", nil) action:@selector(togglePlaying) keyEquivalent:@""];
     
     [menu addItem:self.playerStateMenuItem];
     [menu addItem:self.dockIconMenuItem];
+    [menu addItem:self.togglePlayingMenuItem];
     [menu addItemWithTitle:NSLocalizedString(@"Quit", nil) action:@selector(quit) keyEquivalent:@"q"];
 
     [self.statusItem setMenu:menu];
     
     [self setStatusItemTitle];
     [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(setStatusItemTitle) userInfo:nil repeats:YES];
+    
+    [self toggleDockIconVisibility];
 }
 
 #pragma mark - Setting title text
@@ -54,21 +60,26 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
     NSString *artistName = [[self executeAppleScript:@"get artist of current track"] stringValue];
     
     if (trackName && artistName) {
-        NSString *titleText = [NSString stringWithFormat:@"%@ - %@", trackName, artistName];
+        self.togglePlayingMenuItem.hidden = false;
+        NSString *titleText = [NSString stringWithFormat:@"%@ - %@", artistName, trackName];
         
         if ([self getPlayerStateVisibility]) {
-            NSString *playerState = [self determinePlayerStateText];
+            NSString *playerState = [self determinePlayerStateText:@"player"];
             titleText = [NSString stringWithFormat:@"%@ (%@)", titleText, playerState];
         }
         
         self.statusItem.image = nil;
         self.statusItem.title = titleText;
+        
+        NSString *playingText = [self determinePlayerStateText:@"playing"];
+        self.togglePlayingMenuItem.title = playingText;
     }
     else {
         NSImage *image = [NSImage imageNamed:@"status_icon"];
         [image setTemplate:true];
         self.statusItem.image = image;
         self.statusItem.title = nil;
+        self.togglePlayingMenuItem.hidden = true;
     }
 }
 
@@ -105,19 +116,31 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
     return [self getPlayerStateVisibility] ? NSLocalizedString(@"Hide Player State", nil) : NSLocalizedString(@"Show Player State", nil);
 }
 
-- (NSString *)determinePlayerStateText
+- (NSString *)determinePlayerStateText:(NSString*) use
 {
     NSString *playerStateText = nil;
     NSString *playerStateConstant = [[self executeAppleScript:@"get player state"] stringValue];
     
-    if ([playerStateConstant isEqualToString:@"kPSP"]) {
-        playerStateText = NSLocalizedString(@"Playing", nil);
+    if ([use isEqual:@"player"])
+    {
+        if ([playerStateConstant isEqualToString:@"kPSP"]) {
+            playerStateText = NSLocalizedString(@"Playing", nil);
+        }
+        else if ([playerStateConstant isEqualToString:@"kPSp"]) {
+            playerStateText = NSLocalizedString(@"Paused", nil);
+        }
+        else {
+            playerStateText = NSLocalizedString(@"Stopped", nil);
+        }
     }
-    else if ([playerStateConstant isEqualToString:@"kPSp"]) {
-        playerStateText = NSLocalizedString(@"Paused", nil);
-    }
-    else {
-        playerStateText = NSLocalizedString(@"Stopped", nil);
+    else if ([use isEqual:@"playing"])
+    {
+        if ([playerStateConstant isEqualToString:@"kPSP"]) {
+            playerStateText = NSLocalizedString(@"Pause", nil);
+        }
+        else if ([playerStateConstant isEqualToString:@"kPSp"]) {
+            playerStateText = NSLocalizedString(@"Play", nil);
+        }
     }
     
     return playerStateText;
@@ -153,9 +176,15 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
     }
 }
 
+-(void) togglePlaying
+{
+    NSString* state = [self determinePlayerStateText:@"playing"];
+    [[self executeAppleScript:[NSString stringWithFormat: @"%@ current track", state]] stringValue];
+}
+
 - (NSString *)determineDockIconMenuItemTitle
 {
-    return [self getDockIconVisibility] ? NSLocalizedString(@"Hide Dock Icon", nil) : NSLocalizedString(@"Show Dock Icon", nil);
+    return [self getDockIconVisibility] ? NSLocalizedString(@"Show Dock Icon", nil) : NSLocalizedString(@"Hide Dock Icon", nil);
 }
 
 #pragma mark - Quit
