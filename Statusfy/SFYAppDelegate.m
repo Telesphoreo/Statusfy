@@ -8,7 +8,6 @@
 
 #import "SFYAppDelegate.h"
 
-
 static NSString * const SFYPlayerStatePreferenceKey = @"ShowPlayerState";
 static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
 
@@ -61,18 +60,29 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
     
     if (trackName && artistName) {
         self.togglePlayingMenuItem.hidden = false;
-        NSString *titleText = [NSString stringWithFormat:@"%@ - %@", artistName, trackName];
-        
+        NSString *titleText = [NSString stringWithFormat:@"%@ %@", artistName, trackName];
+      
         if ([self getPlayerStateVisibility]) {
             NSString *playerState = [self determinePlayerStateText:@"player"];
-            titleText = [NSString stringWithFormat:@"%@ (%@)", titleText, playerState];
+            titleText = [NSString stringWithFormat:@"%@ %@", playerState, titleText];
         }
         
-        self.statusItem.image = nil;
-        self.statusItem.title = titleText;
+        NSRange range = [titleText rangeOfString:artistName];
+        NSColor *color = [NSColor colorWithWhite:0.5 alpha:1.0];
+        NSDictionary *defaultAttributes = [NSDictionary
+                                    dictionaryWithObjectsAndKeys:
+                                    [NSColor colorWithWhite:1.0 alpha:1.0],NSForegroundColorAttributeName,
+                                    [NSFont menuBarFontOfSize:12], NSFontAttributeName,
+                                    nil];
+
+        NSMutableAttributedString *attString = [[NSMutableAttributedString alloc] initWithString:titleText attributes:defaultAttributes];
+        
+        [attString addAttribute:NSForegroundColorAttributeName value:color range:range];
         
         NSString *playingText = [self determinePlayerStateText:@"playing"];
         self.togglePlayingMenuItem.title = playingText;
+        self.statusItem.image = nil;
+        [self.statusItem setAttributedTitle:attString];
     }
     else {
         NSImage *image = [NSImage imageNamed:@"status_icon"];
@@ -124,13 +134,13 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
     if ([use isEqual:@"player"])
     {
         if ([playerStateConstant isEqualToString:@"kPSP"]) {
-            playerStateText = NSLocalizedString(@"Playing", nil);
+            playerStateText = NSLocalizedString(@"▶️", nil);
         }
         else if ([playerStateConstant isEqualToString:@"kPSp"]) {
-            playerStateText = NSLocalizedString(@"Paused", nil);
+            playerStateText = NSLocalizedString(@"⏸", nil);
         }
         else {
-            playerStateText = NSLocalizedString(@"Stopped", nil);
+            playerStateText = NSLocalizedString(@"⏹", nil);
         }
     }
     else if ([use isEqual:@"playing"])
@@ -184,7 +194,7 @@ static NSString * const SFYPlayerDockIconPreferenceKey = @"YES";
 
 - (NSString *)determineDockIconMenuItemTitle
 {
-    return [self getDockIconVisibility] ? NSLocalizedString(@"Show Dock Icon", nil) : NSLocalizedString(@"Hide Dock Icon", nil);
+    return [self getDockIconVisibility] ? NSLocalizedString(@"Hide Dock Icon", nil) : NSLocalizedString(@"Show Dock Icon", nil);
 }
 
 #pragma mark - Quit
